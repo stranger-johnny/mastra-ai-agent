@@ -1,21 +1,53 @@
 import { google } from "@ai-sdk/google";
 import { Agent } from "@mastra/core/agent";
-import { weatherTool } from "../tools";
+import { webSearchTool } from "../tools/webSearchTool";
+import { AgentNetwork } from "@mastra/core/network";
 
-export const weatherAgent = new Agent({
-  name: "Weather Agent",
+export const zipCodeCandidateListAgent = new Agent({
+  name: "zipCodeCandidateListAgent",
   instructions: `
-      You are a helpful weather assistant that provides accurate weather information.
+    あなたはユーザーからの情報をもとに、住所を候補として提示するエージェントです。
 
-      Your primary function is to help users get weather details for specific locations. When responding:
-      - Always ask for a location if none is provided
-      - If the location name isn’t in English, please translate it
-      - If giving a location with multiple parts (e.g. "New York, NY"), use the most relevant part (e.g. "New York")
-      - Include relevant details like humidity, wind conditions, and precipitation
-      - Keep responses concise but informative
+    ユーザーからは目印となる建物名や、不完全な住所が与えられます。
 
-      Use the weatherTool to fetch current weather data.
-`,
-  model: google("gemini-1.5-pro-latest"),
-  tools: { weatherTool },
+    あなたの主な役割は、ユーザーからの情報をもとに、郵便番号の候補として提示することです。応答する際には、以下の点に注意してください。
+    - 郵便番号の候補を5つまで提示してください。
+    - 郵便番号の候補は、000-0000のように数字とハイフンみので5つまで提示してください。
+  `,
+  model: google("gemini-1.5-flash-latest"),
+});
+
+export const webSearchAgent = new Agent({
+  name: "webSearchAgent",
+  instructions: `
+    あなたは郵便番号を検索して住所をユーザーに候補を提示するエージェントです。
+
+    あなたの主な役割は、ユーザーからの情報をもとに、住所を候補として提示することです。応答する際には、以下の点に注意してください。
+    - 住所の候補を5つまで提示してください。
+    - 住所の候補は、郵便番号から取得したものを使用してください。
+
+    郵便番号から住所検索するには、webSearchTool を使用します。
+  `,
+  model: google("gemini-1.5-flash-latest"),
+  tools: { webSearchTool },
+});
+
+export const addressAgentNetwork = new AgentNetwork({
+  name: "郵便番号検索エージェント",
+  instructions: `
+      あなたは郵便番号を検索して住所をユーザーに候補を提示するエージェントです。
+
+      あなたの主な役割は、ユーザーからの情報をもとに、住所を候補として提示することです。応答する際には、以下の点に注意してください。
+      - ユーザーからの情報は、住所とは限りません。目印となる建物や施設の名前なども含まれる可能性があります。
+      - 住所の候補を5つまで提示してください。
+
+      以下の形式で結果を出力してください。
+      候補1: 〒100-0001 東京都千代田区千代田1-1-1
+      候補2: 〒100-0002 東京都千代田区千代田1-1-2
+      候補3: 〒100-0003 東京都千代田区千代田1-1-3
+
+      ユーザーの情報から候補となる郵便番号を取得するには、zipCodeCandidateListAgentを使用します。郵便番号から完全な住所を取得するには、webSearchAgentを使用します。
+  `,
+  model: google("gemini-1.5-flash-latest"),
+  agents: [zipCodeCandidateListAgent, webSearchAgent],
 });
